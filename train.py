@@ -51,15 +51,20 @@ def subprocess_fn(rank, c, temp_dir):
 def launch_training(c, desc, outdir, dry_run):
     dnnlib.util.Logger(should_flush=True)
 
-    # Pick output directory.
-    prev_run_dirs = []
+    # No subfolders for different training runs
     if os.path.isdir(outdir):
-        prev_run_dirs = [x for x in os.listdir(outdir) if os.path.isdir(os.path.join(outdir, x))]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
-    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-    cur_run_id = max(prev_run_ids, default=-1) + 1
-    c.run_dir = os.path.join(outdir, f'{cur_run_id:05d}-{desc}')
-    assert not os.path.exists(c.run_dir)
+        c.run_dir = os.path.abspath(outdir)
+    assert os.path.exists(c.run_dir)
+
+    # Pick output directory.
+#    prev_run_dirs = []
+#    if os.path.isdir(outdir):
+#        prev_run_dirs = [x for x in os.listdir(outdir) if os.path.isdir(os.path.join(outdir, x))]
+#    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+#    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+#    cur_run_id = max(prev_run_ids, default=-1) + 1
+#    c.run_dir = os.path.join(outdir, f'{cur_run_id:05d}-{desc}')
+#    assert not os.path.exists(c.run_dir)
 
     # Print options.
     print()
@@ -83,8 +88,8 @@ def launch_training(c, desc, outdir, dry_run):
         return
 
     # Create output directory.
-    print('Creating output directory...')
-    os.makedirs(c.run_dir)
+    #print('Creating output directory...')
+    #os.makedirs(c.run_dir)
     with open(os.path.join(c.run_dir, 'training_options.json'), 'wt') as f:
         json.dump(c, f, indent=2)
 
@@ -160,6 +165,9 @@ def parse_comma_separated_list(s):
 @click.option('--nobench',      help='Disable cuDNN benchmarking', metavar='BOOL',              type=bool, default=False, show_default=True)
 @click.option('--workers',      help='DataLoader worker processes', metavar='INT',              type=click.IntRange(min=1), default=3, show_default=True)
 @click.option('-n','--dry-run', help='Print training options and exit',                         is_flag=True)
+
+# Non-standard settings.
+@click.option('--resume_kimg',  help='Resume kimg', metavar='KIMG',                             type=click.IntRange(min=0), default=0, show_default=True)
 
 def main(**kwargs):
     """Train a GAN using the techniques described in the paper
@@ -257,6 +265,19 @@ def main(**kwargs):
             c.ada_target = opts.target
         if opts.aug == 'fixed':
             c.augment_p = opts.p
+
+    # Resume automatically from last snapshot
+    if not opts.resume:
+        if os.path.isdir(opts.outdir):
+            snapshots = [x for x in os.listdir(opts.outdir) if os.path.isfile(os.path.join(opts.outdir, x))]
+            snapshots = [re.match(r'^network-snapshot-(\d+).pkl', x) for x in snapshots]
+            snapshots = [(int(x.group(1)), x.group()) for x in snapshots if x is not None]
+            snapshot  = max(snapshots, key=lambda item:item[0])
+            opts.resume = os.path.join(opts.outdir, snapshot[1])
+            opts.resume_kimg = snapshot[0] + 1
+
+    # Non-standard settings
+    c.resume_kimg = opts.resume_kimg
 
     # Resume.
     if opts.resume is not None:
