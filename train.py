@@ -269,12 +269,15 @@ def main(**kwargs):
     # Resume automatically from last snapshot
     if not opts.resume:
         if os.path.isdir(opts.outdir):
+
             snapshots = [x for x in os.listdir(opts.outdir) if os.path.isfile(os.path.join(opts.outdir, x))]
             snapshots = [re.match(r'^network-snapshot-(\d+).pkl', x) for x in snapshots]
             snapshots = [(int(x.group(1)), x.group()) for x in snapshots if x is not None]
-            snapshot  = max(snapshots, key=lambda item:item[0])
-            opts.resume = os.path.join(opts.outdir, snapshot[1])
-            opts.resume_kimg = snapshot[0] + 1
+
+            if len(snapshots):
+                snapshot  = max(snapshots, key=lambda item:item[0])
+                opts.resume = os.path.join(opts.outdir, snapshot[1])
+                opts.resume_kimg = snapshot[0] + 1
 
     # Non-standard settings
     c.resume_kimg = opts.resume_kimg
