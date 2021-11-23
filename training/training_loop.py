@@ -349,9 +349,11 @@ def training_loop(
                 print('Aborting...')
 
         # Save image snapshot.
+        snapshot_img = None
         if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
             images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
-            save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.jpg'), drange=[-1,1], grid_size=grid_size)
+            snapshot_img = os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}.jpg')
+            save_image_grid(images, snapshot_img, drange=[-1,1], grid_size=grid_size)
 
         # Save network snapshot.
         snapshot_pkl = None
@@ -371,6 +373,11 @@ def training_loop(
             if rank == 0:
                 with open(snapshot_pkl, 'wb') as f:
                     pickle.dump(snapshot_data, f)
+
+        # Notify that snapshot and model have been saved.
+        if (snapshot_img is not None) and (snapshot_pkl is not None):
+            if rank == 0:
+                print('@saved {} & {}'.format(snapshot_img, snapshot_pkl))
 
         # Evaluate metrics.
         if (snapshot_data is not None) and (len(metrics) > 0):
