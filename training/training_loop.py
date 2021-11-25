@@ -1,3 +1,13 @@
+
+#
+# ** Project Path & Includes
+#
+
+import os, sys
+sys.path.insert(1, os.path.join(sys.path[0], '../../kood'))
+
+from utils import training
+
 # Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
 #
 # NVIDIA CORPORATION and its licensors retain all intellectual property
@@ -121,6 +131,9 @@ def training_loop(
     abort_fn                = None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
     progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
 ):
+    # Peatamise loogika
+    abort_fn = training.abort
+
     # Initialize.
     start_time = time.time()
     device = torch.device('cuda', rank)
@@ -325,7 +338,7 @@ def training_loop(
         # Print status line, accumulating the same information in training_stats.
         tick_end_time = time.time()
         fields = []
-        fields += [f"tick {training_stats.report0('Progress/tick', cur_tick):<5d}"]
+        fields += [f"@tick {training_stats.report0('Progress/tick', cur_tick):<5d}"]
         fields += [f"kimg {training_stats.report0('Progress/kimg', cur_nimg / 1e3):<8.1f}"]
         fields += [f"time {dnnlib.util.format_time(training_stats.report0('Timing/total_sec', tick_end_time - start_time)):<12s}"]
         fields += [f"sec/tick {training_stats.report0('Timing/sec_per_tick', tick_end_time - tick_start_time):<7.1f}"]
@@ -377,7 +390,7 @@ def training_loop(
         # Notify that snapshot and model have been saved.
         if (snapshot_img is not None) and (snapshot_pkl is not None):
             if rank == 0:
-                print('@saved {} & {}'.format(snapshot_img, snapshot_pkl))
+                print('@saved', '{} & {}'.format(snapshot_img, snapshot_pkl))
 
         # Evaluate metrics.
         if (snapshot_data is not None) and (len(metrics) > 0):
