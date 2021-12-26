@@ -31,7 +31,7 @@ from viz import equivariance_widget
 
 class Visualizer(imgui_window.ImguiWindow):
     def __init__(self, capture_dir=None):
-        super().__init__(title='GAN Visualizer', window_width=3840, window_height=2160)
+        super().__init__(title='GAN Visualizer', window_width=1080, window_height=800)
 
         # Internals.
         self._last_error_print  = None
@@ -61,7 +61,7 @@ class Visualizer(imgui_window.ImguiWindow):
             self.capture_widget.path = capture_dir
 
         # Initialize window.
-        self.set_position(0, 0)
+        self.set_position(0, 320)
         self._adjust_font_size()
         self.skip_frame() # Layout may change after first frame.
 

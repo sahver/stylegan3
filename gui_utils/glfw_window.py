@@ -14,7 +14,7 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 class GlfwWindow: # pylint: disable=too-many-public-methods
-    def __init__(self, *, title='GlfwWindow', window_width=1920, window_height=1080, deferred_show=True, close_on_esc=True):
+    def __init__(self, *, title='GlfwWindow', window_width=1920, window_height=1080, deferred_show=True, close_on_esc=True, fullscreen=False, monitor=None):
         self._glfw_window           = None
         self._drawing_frame         = False
         self._frame_start_time      = None
@@ -28,17 +28,24 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._drag_and_drop_paths   = None
         self._capture_next_frame    = False
         self._captured_frame        = None
+        self._fullscreen            = fullscreen
 
         # Create window.
         glfw.init()
         glfw.window_hint(glfw.VISIBLE, False)
-        self._glfw_window = glfw.create_window(width=window_width, height=window_height, title=title, monitor=None, share=None)
+        self._glfw_window = glfw.create_window(width=window_width, height=window_height, title=title, monitor=(glfw.get_primary_monitor() if self._fullscreen else monitor), share=None)
         self._attach_glfw_callbacks()
         self.make_context_current()
 
         # Adjust window.
         self.set_vsync(False)
         self.set_window_size(window_width, window_height)
+
+        # No mouse on Fullscreen
+        if self._fullscreen:
+            glfw.set_input_mode(self._glfw_window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
+
+        # Show
         if not self._deferred_show:
             glfw.show_window(self._glfw_window)
 
