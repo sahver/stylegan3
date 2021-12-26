@@ -22,6 +22,8 @@ from metrics import metric_main
 from torch_utils import training_stats
 from torch_utils import custom_ops
 
+from pathlib import Path
+
 #----------------------------------------------------------------------------
 
 def subprocess_fn(rank, c, temp_dir):
@@ -56,6 +58,25 @@ def launch_training(c, desc, outdir, dry_run):
         c.run_dir = os.path.abspath(outdir)
     assert os.path.exists(c.run_dir)
 
+    sg_run_ds = Path(c.training_set_kwargs.path).stem
+
+    if 'resume_pkl' in c and Path(c.resume_pkl).is_file():
+
+        sg_resume_pkl = Path(c.resume_pkl)
+
+        sg_run_id = re.match(r'^(\d+)-(\d+)-(.*)', sg_resume_pkl.parent.name)
+        sg_run_id = int(sg_run_id.group(1))
+        sg_run_id = sg_run_id + 1
+
+        sg_run_kimg = re.match(r'^network-snapshot-(\d+).pkl', sg_resume_pkl.name)
+        sg_run_kimg = int(sg_run_kimg.group(1))
+
+        c.run_dir = sg_resume_pkl.parent.parent / f'{sg_run_id:04d}-{sg_run_kimg:05d}-{sg_run_ds}'
+        c.resume_kimg = sg_run_kimg
+
+    else:
+        c.run_dir = Path(outdir) / f'0001-00001-{sg_run_ds}'
+
     # Pick output directory.
 #    prev_run_dirs = []
 #    if os.path.isdir(outdir):
@@ -64,7 +85,9 @@ def launch_training(c, desc, outdir, dry_run):
 #    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
 #    cur_run_id = max(prev_run_ids, default=-1) + 1
 #    c.run_dir = os.path.join(outdir, f'{cur_run_id:05d}-{desc}')
-#    assert not os.path.exists(c.run_dir)
+
+    c.run_dir = c.run_dir.as_posix()
+    assert not os.path.exists(c.run_dir)
 
     # Print options.
     print()
@@ -88,8 +111,8 @@ def launch_training(c, desc, outdir, dry_run):
         return
 
     # Create output directory.
-    #print('Creating output directory...')
-    #os.makedirs(c.run_dir)
+    print('Creating output directory...')
+    os.makedirs(c.run_dir)
     with open(os.path.join(c.run_dir, 'training_options.json'), 'wt') as f:
         json.dump(c, f, indent=2)
 
@@ -265,19 +288,6 @@ def main(**kwargs):
             c.ada_target = opts.target
         if opts.aug == 'fixed':
             c.augment_p = opts.p
-
-    # Resume automatically from last snapshot
-    if not opts.resume:
-        if os.path.isdir(opts.outdir):
-
-            snapshots = [x for x in os.listdir(opts.outdir) if os.path.isfile(os.path.join(opts.outdir, x))]
-            snapshots = [re.match(r'^network-snapshot-(\d+).pkl', x) for x in snapshots]
-            snapshots = [(int(x.group(1)), x.group()) for x in snapshots if x is not None]
-
-            if len(snapshots):
-                snapshot  = max(snapshots, key=lambda item:item[0])
-                opts.resume = os.path.join(opts.outdir, snapshot[1])
-                opts.resume_kimg = snapshot[0] + 1
 
     # Non-standard settings
     c.resume_kimg = opts.resume_kimg

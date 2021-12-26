@@ -1,6 +1,6 @@
 
 #
-# ** Project Path & Includes
+# ** /
 #
 
 import os, sys
@@ -35,6 +35,8 @@ from torch_utils.ops import grid_sample_gradfix
 
 import legacy
 from metrics import metric_main
+
+from pathlib import Path
 
 #----------------------------------------------------------------------------
 
@@ -390,7 +392,7 @@ def training_loop(
         # Notify that snapshot and model have been saved.
         if (snapshot_img is not None) and (snapshot_pkl is not None):
             if rank == 0:
-                print('@saved', '{} & {}'.format(snapshot_img, snapshot_pkl))
+                print('@saved', 'dir:{} snapshot:{} pickle:{}'.format(Path(snapshot_pkl).parent, Path(snapshot_img).name, Path(snapshot_pkl).name))
 
         # Evaluate metrics.
         if (snapshot_data is not None) and (len(metrics) > 0):
