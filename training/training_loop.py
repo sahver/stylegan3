@@ -72,7 +72,7 @@ def setup_snapshot_image_grid(training_set, random_seed=0):
 
 #----------------------------------------------------------------------------
 
-def save_image_grid(img, fname, drange, grid_size):
+def save_image_grid(img, fname, drange, grid_size, downscale):
 	lo, hi = drange
 	img = np.asarray(img, dtype=np.float32)
 	img = (img - lo) * (255 / (hi - lo))
@@ -88,43 +88,44 @@ def save_image_grid(img, fname, drange, grid_size):
 	if C == 1:
 		PIL.Image.fromarray(img[:, :, 0], 'L').save(fname)
 	if C == 3:
+		img = img[::downscale, ::downscale]
 		PIL.Image.fromarray(img, 'RGB').save(fname)
-
 #----------------------------------------------------------------------------
 
 def training_loop(
-	run_dir                 = '.',      # Output directory.
-	training_set_kwargs     = {},       # Options for training set.
-	data_loader_kwargs      = {},       # Options for torch.utils.data.DataLoader.
-	G_kwargs                = {},       # Options for generator network.
-	D_kwargs                = {},       # Options for discriminator network.
-	G_opt_kwargs            = {},       # Options for generator optimizer.
-	D_opt_kwargs            = {},       # Options for discriminator optimizer.
-	augment_kwargs          = None,     # Options for augmentation pipeline. None = disable.
-	loss_kwargs             = {},       # Options for loss function.
-	metrics                 = [],       # Metrics to evaluate during training.
-	random_seed             = 0,        # Global random seed.
-	num_gpus                = 1,        # Number of GPUs participating in the training.
-	rank                    = 0,        # Rank of the current process in [0, num_gpus[.
-	batch_size              = 4,        # Total batch size for one training iteration. Can be larger than batch_gpu * num_gpus.
-	batch_gpu               = 4,        # Number of samples processed at a time by one GPU.
-	ema_kimg                = 10,       # Half-life of the exponential moving average (EMA) of generator weights.
-	ema_rampup              = 0.05,     # EMA ramp-up coefficient. None = no rampup.
-	G_reg_interval          = None,     # How often to perform regularization for G? None = disable lazy regularization.
-	D_reg_interval          = 16,       # How often to perform regularization for D? None = disable lazy regularization.
-	augment_p               = 0,        # Initial value of augmentation probability.
-	ada_target              = None,     # ADA target value. None = fixed p.
-	ada_interval            = 4,        # How often to perform ADA adjustment?
-	ada_kimg                = 500,      # ADA adjustment speed, measured in how many kimg it takes for p to increase/decrease by one unit.
-	total_kimg              = 25000,    # Total length of the training, measured in thousands of real images.
-	kimg_per_tick           = 4,        # Progress snapshot interval.
-	image_snapshot_ticks    = 50,       # How often to save image snapshots? None = disable.
-	network_snapshot_ticks  = 50,       # How often to save network snapshots? None = disable.
-	resume_pkl              = None,     # Network pickle to resume training from.
-	resume_kimg             = 0,        # First kimg to report when resuming training.
-	cudnn_benchmark         = True,     # Enable torch.backends.cudnn.benchmark?
-	abort_fn                = None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
-	progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
+	run_dir                 	= '.',      # Output directory.
+	training_set_kwargs     	= {},       # Options for training set.
+	data_loader_kwargs      	= {},       # Options for torch.utils.data.DataLoader.
+	G_kwargs                	= {},       # Options for generator network.
+	D_kwargs                	= {},       # Options for discriminator network.
+	G_opt_kwargs            	= {},       # Options for generator optimizer.
+	D_opt_kwargs            	= {},       # Options for discriminator optimizer.
+	augment_kwargs          	= None,     # Options for augmentation pipeline. None = disable.
+	loss_kwargs             	= {},       # Options for loss function.
+	metrics                 	= [],       # Metrics to evaluate during training.
+	random_seed             	= 0,        # Global random seed.
+	num_gpus                	= 1,        # Number of GPUs participating in the training.
+	rank                    	= 0,        # Rank of the current process in [0, num_gpus[.
+	batch_size              	= 4,        # Total batch size for one training iteration. Can be larger than batch_gpu * num_gpus.
+	batch_gpu               	= 4,        # Number of samples processed at a time by one GPU.
+	ema_kimg                	= 10,       # Half-life of the exponential moving average (EMA) of generator weights.
+	ema_rampup              	= 0.05,     # EMA ramp-up coefficient. None = no rampup.
+	G_reg_interval          	= None,     # How often to perform regularization for G? None = disable lazy regularization.
+	D_reg_interval          	= 16,       # How often to perform regularization for D? None = disable lazy regularization.
+	augment_p               	= 0,        # Initial value of augmentation probability.
+	ada_target              	= None,     # ADA target value. None = fixed p.
+	ada_interval            	= 4,        # How often to perform ADA adjustment?
+	ada_kimg                	= 500,      # ADA adjustment speed, measured in how many kimg it takes for p to increase/decrease by one unit.
+	total_kimg              	= 25000,    # Total length of the training, measured in thousands of real images.
+	kimg_per_tick           	= 4,        # Progress snapshot interval.
+	image_snapshot_ticks    	= 50,       # How often to save image snapshots? None = disable.
+	image_snapshot_thumb_res	= 256,		# What's the maximum size of snapshot grid individual images.
+	network_snapshot_ticks  	= 50,       # How often to save network snapshots? None = disable.
+	resume_pkl              	= None,     # Network pickle to resume training from.
+	resume_kimg             	= 0,        # First kimg to report when resuming training.
+	cudnn_benchmark         	= True,     # Enable torch.backends.cudnn.benchmark?
+	abort_fn                	= None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
+	progress_fn             	= None,     # Callback function for updating training progress. Called for all ranks.
 ):
 	# Peatamise loogika
 	abort_fn = training.abort
@@ -223,14 +224,15 @@ def training_loop(
 	grid_size = None
 	grid_z = None
 	grid_c = None
+
 	if rank == 0:
 		print('Exporting sample images...')
 		grid_size, images, labels = setup_snapshot_image_grid(training_set=training_set)
-		save_image_grid(images, os.path.join(run_dir, 'reals.jpg'), drange=[0,255], grid_size=grid_size)
+#		save_image_grid(images, os.path.join(run_dir, 'reals.jpg'), drange=[0,255], grid_size=grid_size, downscale=(training_set_kwargs.resolution//image_snapshot_thumb_res))
 		grid_z = torch.randn([labels.shape[0], G.z_dim], device=device).split(batch_gpu)
 		grid_c = torch.from_numpy(labels).to(device).split(batch_gpu)
 		images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
-		save_image_grid(images, os.path.join(run_dir, 'fakes_init.jpg'), drange=[-1,1], grid_size=grid_size)
+#		save_image_grid(images, os.path.join(run_dir, 'fakes_init.jpg'), drange=[-1,1], grid_size=grid_size, downscale=(training_set_kwargs.resolution//image_snapshot_thumb_res))
 
 	# Initialize logs.
 	if rank == 0:
@@ -349,24 +351,21 @@ def training_loop(
 		if rank == 0:
 			print(' '.join(fields))
 
-		# Check for abort.
-		if (not done) and (abort_fn is not None) and abort_fn():
+		# Check for abort after min 1 runs
+		if (not done) and (abort_fn is not None) and abort_fn() and (cur_tick > 0):
 			done = True
-			if rank == 0:
-				print()
-				print('Aborting...')
 
 		# Save image snapshot.
 		snapshot_img = None
-		if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0):
+		if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0) and (cur_tick > 0 or tick_start_nimg == 0):
 			images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
 			snapshot_img = os.path.join(run_dir, 'fakes-{:06d}.jpg'.format(int(cur_nimg/1000)))
-			save_image_grid(images, snapshot_img, drange=[-1,1], grid_size=grid_size)
+			save_image_grid(images, snapshot_img, drange=[-1,1], grid_size=grid_size, downscale=(training_set_kwargs.resolution//image_snapshot_thumb_res))
 
 		# Save network snapshot.
 		snapshot_pkl = None
 		snapshot_data = None
-		if (network_snapshot_ticks is not None) and (done or cur_tick % network_snapshot_ticks == 0):
+		if (network_snapshot_ticks is not None) and (done or cur_tick % network_snapshot_ticks == 0) and (cur_tick > 0 or tick_start_nimg == 0):
 			snapshot_data = dict(G=G, D=D, G_ema=G_ema, augment_pipe=augment_pipe, training_set_kwargs=dict(training_set_kwargs))
 			for key, value in snapshot_data.items():
 				if isinstance(value, torch.nn.Module):
@@ -386,6 +385,15 @@ def training_loop(
 		if (snapshot_img is not None) and (snapshot_pkl is not None):
 			if rank == 0:
 				print('@saved', 'dir:{} snapshot:{} pickle:{}'.format(Path(snapshot_pkl).parent, Path(snapshot_img).name, Path(snapshot_pkl).name))
+
+		# Notify that tick is finished
+		if rank == 0:
+			print('@done')
+
+		# Notify abort
+		if done and (abort_fn is not None) and abort_fn():
+			if rank == 0:
+				print('@abort')
 
 		# Evaluate metrics.
 		if (snapshot_data is not None) and (len(metrics) > 0):

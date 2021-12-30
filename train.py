@@ -128,42 +128,43 @@ def parse_comma_separated_list(s):
 @click.command()
 
 # Required.
-@click.option('--outdir',       help='Where to save the results', metavar='DIR',                required=True)
-@click.option('--cfg',          help='Base configuration',                                      type=click.Choice(['stylegan3-t', 'stylegan3-r', 'stylegan2']), required=True)
-@click.option('--data',         help='Training data', metavar='[ZIP|DIR]',                      type=str, required=True)
-@click.option('--gpus',         help='Number of GPUs to use', metavar='INT',                    type=click.IntRange(min=1), required=True)
-@click.option('--batch',        help='Total batch size', metavar='INT',                         type=click.IntRange(min=1), required=True)
-@click.option('--gamma',        help='R1 regularization weight', metavar='FLOAT',               type=click.FloatRange(min=0), required=True)
+@click.option('--outdir',       	help='Where to save the results', metavar='DIR',                required=True)
+@click.option('--cfg',          	help='Base configuration',                                      type=click.Choice(['stylegan3-t', 'stylegan3-r', 'stylegan2']), required=True)
+@click.option('--data',         	help='Training data', metavar='[ZIP|DIR]',                      type=str, required=True)
+@click.option('--gpus',         	help='Number of GPUs to use', metavar='INT',                    type=click.IntRange(min=1), required=True)
+@click.option('--batch',        	help='Total batch size', metavar='INT',                         type=click.IntRange(min=1), required=True)
+@click.option('--gamma',        	help='R1 regularization weight', metavar='FLOAT',               type=click.FloatRange(min=0), required=True)
 
 # Optional features.
-@click.option('--cond',         help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
-@click.option('--mirror',       help='Enable dataset x-flips', metavar='BOOL',                  type=bool, default=False, show_default=True)
-@click.option('--aug',          help='Augmentation mode',                                       type=click.Choice(['noaug', 'ada', 'fixed']), default='ada', show_default=True)
-@click.option('--resume',       help='Resume from given network pickle or latest', metavar='[PATH|URL|latest]',  type=str)
-@click.option('--freezed',      help='Freeze first layers of D', metavar='INT',                 type=click.IntRange(min=0), default=0, show_default=True)
+@click.option('--cond',         	help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
+@click.option('--mirror',       	help='Enable dataset x-flips', metavar='BOOL',                  type=bool, default=False, show_default=True)
+@click.option('--aug',          	help='Augmentation mode',                                       type=click.Choice(['noaug', 'ada', 'fixed']), default='ada', show_default=True)
+@click.option('--resume',       	help='Resume from given network pickle or latest', metavar='[PATH|URL|latest]',  type=str)
+@click.option('--freezed',      	help='Freeze first layers of D', metavar='INT',                 type=click.IntRange(min=0), default=0, show_default=True)
 
 # Misc hyperparameters.
-@click.option('--p',            help='Probability for --aug=fixed', metavar='FLOAT',            type=click.FloatRange(min=0, max=1), default=0.2, show_default=True)
-@click.option('--target',       help='Target value for --aug=ada', metavar='FLOAT',             type=click.FloatRange(min=0, max=1), default=0.6, show_default=True)
-@click.option('--batch-gpu',    help='Limit batch size per GPU', metavar='INT',                 type=click.IntRange(min=1))
-@click.option('--cbase',        help='Capacity multiplier', metavar='INT',                      type=click.IntRange(min=1), default=32768, show_default=True)
-@click.option('--cmax',         help='Max. feature maps', metavar='INT',                        type=click.IntRange(min=1), default=512, show_default=True)
-@click.option('--glr',          help='G learning rate  [default: varies]', metavar='FLOAT',     type=click.FloatRange(min=0))
-@click.option('--dlr',          help='D learning rate', metavar='FLOAT',                        type=click.FloatRange(min=0), default=0.002, show_default=True)
-@click.option('--map-depth',    help='Mapping network depth  [default: varies]', metavar='INT', type=click.IntRange(min=1))
-@click.option('--mbstd-group',  help='Minibatch std group size', metavar='INT',                 type=click.IntRange(min=1), default=4, show_default=True)
+@click.option('--p',            	help='Probability for --aug=fixed', metavar='FLOAT',            type=click.FloatRange(min=0, max=1), default=0.2, show_default=True)
+@click.option('--target',       	help='Target value for --aug=ada', metavar='FLOAT',             type=click.FloatRange(min=0, max=1), default=0.6, show_default=True)
+@click.option('--batch-gpu',    	help='Limit batch size per GPU', metavar='INT',                 type=click.IntRange(min=1))
+@click.option('--cbase',        	help='Capacity multiplier', metavar='INT',                      type=click.IntRange(min=1), default=32768, show_default=True)
+@click.option('--cmax',         	help='Max. feature maps', metavar='INT',                        type=click.IntRange(min=1), default=512, show_default=True)
+@click.option('--glr',          	help='G learning rate  [default: varies]', metavar='FLOAT',     type=click.FloatRange(min=0))
+@click.option('--dlr',          	help='D learning rate', metavar='FLOAT',                        type=click.FloatRange(min=0), default=0.002, show_default=True)
+@click.option('--map-depth',    	help='Mapping network depth  [default: varies]', metavar='INT', type=click.IntRange(min=1))
+@click.option('--mbstd-group',  	help='Minibatch std group size', metavar='INT',                 type=click.IntRange(min=1), default=4, show_default=True)
 
 # Misc settings.
-@click.option('--desc',         help='String to include in result dir name', metavar='STR',     type=str)
-@click.option('--metrics',      help='Quality metrics', metavar='[NAME|A,B,C|none]',            type=parse_comma_separated_list, default='fid50k_full', show_default=True)
-@click.option('--kimg',         help='Total training duration', metavar='KIMG',                 type=click.IntRange(min=1), default=25000, show_default=True)
-@click.option('--tick',         help='How often to print progress', metavar='KIMG',             type=click.IntRange(min=1), default=4, show_default=True)
-@click.option('--snap',         help='How often to save snapshots', metavar='TICKS',            type=click.IntRange(min=1), default=50, show_default=True)
-@click.option('--seed',         help='Random seed', metavar='INT',                              type=click.IntRange(min=0), default=0, show_default=True)
-@click.option('--fp32',         help='Disable mixed-precision', metavar='BOOL',                 type=bool, default=False, show_default=True)
-@click.option('--nobench',      help='Disable cuDNN benchmarking', metavar='BOOL',              type=bool, default=False, show_default=True)
-@click.option('--workers',      help='DataLoader worker processes', metavar='INT',              type=click.IntRange(min=1), default=3, show_default=True)
-@click.option('-n','--dry-run', help='Print training options and exit',                         is_flag=True)
+@click.option('--desc',         	help='String to include in result dir name', metavar='STR',     type=str)
+@click.option('--metrics',      	help='Quality metrics', metavar='[NAME|A,B,C|none]',            type=parse_comma_separated_list, default='fid50k_full', show_default=True)
+@click.option('--kimg',         	help='Total training duration', metavar='KIMG',                 type=click.IntRange(min=1), default=25000, show_default=True)
+@click.option('--tick',         	help='How often to print progress', metavar='KIMG',             type=click.IntRange(min=1), default=4, show_default=True)
+@click.option('--snap',         	help='How often to save snapshots', metavar='TICKS',            type=click.IntRange(min=1), default=50, show_default=True)
+@click.option('--snap-thumb-res',	help='Snapshot individual images resolution',                   type=click.IntRange(min=2), default=256, show_default=True)
+@click.option('--seed',         	help='Random seed', metavar='INT',                              type=click.IntRange(min=0), default=0, show_default=True)
+@click.option('--fp32',         	help='Disable mixed-precision', metavar='BOOL',                 type=bool, default=False, show_default=True)
+@click.option('--nobench',      	help='Disable cuDNN benchmarking', metavar='BOOL',              type=bool, default=False, show_default=True)
+@click.option('--workers',      	help='DataLoader worker processes', metavar='INT',              type=click.IntRange(min=1), default=3, show_default=True)
+@click.option('-n','--dry-run', 	help='Print training options and exit',                         is_flag=True)
 
 def main(**kwargs):
 	"""Train a GAN using the techniques described in the paper
@@ -223,6 +224,14 @@ def main(**kwargs):
 	c.image_snapshot_ticks = c.network_snapshot_ticks = opts.snap
 	c.random_seed = c.training_set_kwargs.random_seed = opts.seed
 	c.data_loader_kwargs.num_workers = opts.workers
+
+	# Custom
+	c.image_snapshot_thumb_res = opts.snap_thumb_res
+
+	if c.training_set_kwargs.resolution % c.image_snapshot_thumb_res != 0:
+		raise click.ClickException('--snap-thumb-res must be a multiple of dataset resolution ({})'.format(c.training_set_kwargs.resolution))
+	if c.training_set_kwargs.resolution < c.image_snapshot_thumb_res:
+		raise click.ClickException('--snap-thumb-res must be smaller than dataset resolution({})'.format(c.training_set_kwargs.resolution))
 
 	# Sanity checks.
 	if c.batch_size % c.num_gpus != 0:
