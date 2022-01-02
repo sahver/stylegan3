@@ -103,6 +103,7 @@ def training_loop(
 	augment_kwargs          	= None,     # Options for augmentation pipeline. None = disable.
 	loss_kwargs             	= {},       # Options for loss function.
 	metrics                 	= [],       # Metrics to evaluate during training.
+	metrics_freq				= 100,		# How often calculate metrics (kimg)
 	random_seed             	= 0,        # Global random seed.
 	num_gpus                	= 1,        # Number of GPUs participating in the training.
 	rank                    	= 0,        # Rank of the current process in [0, num_gpus[.
@@ -231,7 +232,7 @@ def training_loop(
 #		save_image_grid(images, os.path.join(run_dir, 'reals.jpg'), drange=[0,255], grid_size=grid_size, downscale=(training_set_kwargs.resolution//image_snapshot_thumb_res))
 		grid_z = torch.randn([labels.shape[0], G.z_dim], device=device).split(batch_gpu)
 		grid_c = torch.from_numpy(labels).to(device).split(batch_gpu)
-		images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
+		images = torch.cat([G_ema(z=z, c=c, noise_mode='none').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
 #		save_image_grid(images, os.path.join(run_dir, 'fakes_init.jpg'), drange=[-1,1], grid_size=grid_size, downscale=(training_set_kwargs.resolution//image_snapshot_thumb_res))
 
 	# Initialize logs.
@@ -358,7 +359,7 @@ def training_loop(
 		# Save image snapshot.
 		snapshot_img = None
 		if (rank == 0) and (image_snapshot_ticks is not None) and (done or cur_tick % image_snapshot_ticks == 0) and (cur_tick > 0 or tick_start_nimg == 0):
-			images = torch.cat([G_ema(z=z, c=c, noise_mode='const').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
+			images = torch.cat([G_ema(z=z, c=c, noise_mode='none').cpu() for z, c in zip(grid_z, grid_c)]).numpy()
 			snapshot_img = os.path.join(run_dir, 'fakes-{:06d}.jpg'.format(int(cur_nimg/1000)))
 			save_image_grid(images, snapshot_img, drange=[-1,1], grid_size=grid_size, downscale=(training_set_kwargs.resolution//image_snapshot_thumb_res))
 
@@ -396,7 +397,7 @@ def training_loop(
 				print('@abort')
 
 		# Evaluate metrics.
-		if (snapshot_data is not None) and (len(metrics) > 0):
+		if (snapshot_data is not None) and (len(metrics) > 0) and (int(cur_nimg / 1e3) % metrics_freq == 0):
 			if rank == 0:
 				print('Evaluating metrics...')
 			for metric in metrics:

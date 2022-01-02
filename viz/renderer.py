@@ -139,8 +139,8 @@ class Renderer:
         self._end_event.record(torch.cuda.current_stream(self._device))
         if 'image' in res:
             res.image = self.to_cpu(res.image).numpy()
-        if 'stats' in res:
-            res.stats = self.to_cpu(res.stats).numpy()
+#        if 'stats' in res:
+#            res.stats = self.to_cpu(res.stats).numpy()
         if 'error' in res:
             res.error = str(res.error)
         if self._is_timing:
@@ -150,6 +150,7 @@ class Renderer:
         return res
 
     def get_network(self, pkl, key, **tweak_kwargs):
+#        print('Mudeleid mälus kokku: {}'.format(len(self._pkl_data)))
         data = self._pkl_data.get(pkl, None)
         if data is None:
             print(f'Loading "{pkl}"... ', end='', flush=True)
@@ -160,6 +161,7 @@ class Renderer:
             except:
                 data = CapturedException()
                 print('Failed!')
+#            self._pkl_data.clear()
             self._pkl_data[pkl] = data
             self._ignore_timing()
         if isinstance(data, CapturedException):
@@ -171,17 +173,19 @@ class Renderer:
         if net is None:
             try:
                 net = copy.deepcopy(orig_net)
-                net = self._tweak_network(net, **tweak_kwargs)
+#                net = self._tweak_network(net, **tweak_kwargs)
                 net.to(self._device)
             except:
                 net = CapturedException()
+#            self._networks.clear()
+#            torch.cuda.empty_cache()
             self._networks[cache_key] = net
             self._ignore_timing()
         if isinstance(net, CapturedException):
             raise net
         return net
 
-    def _tweak_network(self, net):
+#    def _tweak_network(self, net):
         # Print diagnostics.
         #for name, value in misc.named_params_and_buffers(net):
         #    if name.endswith('.magnitude_ema'):
@@ -190,7 +194,7 @@ class Renderer:
         #    if name.endswith('.weight') and value.ndim == 4:
         #        value = value.square().mean([1,2,3]).sqrt().numpy()
         #        print(f'{name:<50s}{np.min(value):<16g}{np.max(value):g}')
-        return net
+#        return net
 
     def _get_pinned_buf(self, ref):
         key = (tuple(ref.shape), ref.dtype)
@@ -209,17 +213,17 @@ class Renderer:
     def _ignore_timing(self):
         self._is_timing = False
 
-    def _apply_cmap(self, x, name='viridis'):
-        cmap = self._cmaps.get(name, None)
-        if cmap is None:
-            cmap = matplotlib.cm.get_cmap(name)
-            cmap = cmap(np.linspace(0, 1, num=1024), bytes=True)[:, :3]
-            cmap = self.to_device(torch.from_numpy(cmap))
-            self._cmaps[name] = cmap
-        hi = cmap.shape[0] - 1
-        x = (x * hi + 0.5).clamp(0, hi).to(torch.int64)
-        x = torch.nn.functional.embedding(x, cmap)
-        return x
+#    def _apply_cmap(self, x, name='viridis'):
+#        cmap = self._cmaps.get(name, None)
+#        if cmap is None:
+#            cmap = matplotlib.cm.get_cmap(name)
+#            cmap = cmap(np.linspace(0, 1, num=1024), bytes=True)[:, :3]
+#            cmap = self.to_device(torch.from_numpy(cmap))
+#            self._cmaps[name] = cmap
+#        hi = cmap.shape[0] - 1
+#        x = (x * hi + 0.5).clamp(0, hi).to(torch.int64)
+#        x = torch.nn.functional.embedding(x, cmap)
+#        return x
 
     def _render_impl(self, res,
         pkl             = None,
@@ -309,11 +313,11 @@ class Renderer:
             sel_channels = 1
         base_channel = max(min(base_channel, out.shape[0] - sel_channels), 0)
         sel = out[base_channel : base_channel + sel_channels]
-        res.stats = torch.stack([
-            out.mean(), sel.mean(),
-            out.std(), sel.std(),
-            out.norm(float('inf')), sel.norm(float('inf')),
-        ])
+#        res.stats = torch.stack([
+#            out.mean(), sel.mean(),
+#            out.std(), sel.std(),
+#            out.norm(float('inf')), sel.norm(float('inf')),
+#        ])
 
         # Scale and convert to uint8.
         img = sel
@@ -324,17 +328,17 @@ class Renderer:
         res.image = img
 
         # FFT.
-        if fft_show:
-            sig = out if fft_all else sel
-            sig = sig.to(torch.float32)
-            sig = sig - sig.mean(dim=[1,2], keepdim=True)
-            sig = sig * torch.kaiser_window(sig.shape[1], periodic=False, beta=fft_beta, device=self._device)[None, :, None]
-            sig = sig * torch.kaiser_window(sig.shape[2], periodic=False, beta=fft_beta, device=self._device)[None, None, :]
-            fft = torch.fft.fftn(sig, dim=[1,2]).abs().square().sum(dim=0)
-            fft = fft.roll(shifts=[fft.shape[0] // 2, fft.shape[1] // 2], dims=[0,1])
-            fft = (fft / fft.mean()).log10() * 10 # dB
-            fft = self._apply_cmap((fft / fft_range_db + 1) / 2)
-            res.image = torch.cat([img.expand_as(fft), fft], dim=1)
+#        if fft_show:
+#            sig = out if fft_all else sel
+#            sig = sig.to(torch.float32)
+#            sig = sig - sig.mean(dim=[1,2], keepdim=True)
+#            sig = sig * torch.kaiser_window(sig.shape[1], periodic=False, beta=fft_beta, device=self._device)[None, :, None]
+#            sig = sig * torch.kaiser_window(sig.shape[2], periodic=False, beta=fft_beta, device=self._device)[None, None, :]
+#            fft = torch.fft.fftn(sig, dim=[1,2]).abs().square().sum(dim=0)
+#            fft = fft.roll(shifts=[fft.shape[0] // 2, fft.shape[1] // 2], dims=[0,1])
+#            fft = (fft / fft.mean()).log10() * 10 # dB
+#            fft = self._apply_cmap((fft / fft_range_db + 1) / 2)
+#            res.image = torch.cat([img.expand_as(fft), fft], dim=1)
 
     @staticmethod
     def run_synthesis_net(net, *args, capture_layer=None, **kwargs): # => out, layers

@@ -59,7 +59,7 @@ def launch_training(c, desc, outdir, dry_run):
 	assert os.path.exists(c.run_dir)
 
 	# Construct output dir name
-	run_dir = training.construct_outdir(c.training_set_kwargs.path, c.resume_pkl if 'resume_pkl' in c else None)
+	run_dir = training.construct_outdir(c.training_set_kwargs.hash, c.resume_pkl if 'resume_pkl' in c else None)
 	c.run_dir = os.path.join(c.run_dir, run_dir)
 
 	# Check
@@ -103,13 +103,14 @@ def launch_training(c, desc, outdir, dry_run):
 
 #----------------------------------------------------------------------------
 
-def init_dataset_kwargs(data):
+def init_dataset_kwargs(data, hash):
 	try:
 		dataset_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
 		dataset_obj = dnnlib.util.construct_class_by_name(**dataset_kwargs) # Subclass of training.dataset.Dataset.
 		dataset_kwargs.resolution = dataset_obj.resolution # Be explicit about resolution.
 		dataset_kwargs.use_labels = dataset_obj.has_labels # Be explicit about labels.
 		dataset_kwargs.max_size = len(dataset_obj) # Be explicit about dataset size.
+		dataset_kwargs.hash = hash # Dataset hash
 		return dataset_kwargs, dataset_obj.name
 	except IOError as err:
 		raise click.ClickException(f'--data: {err}')
@@ -131,6 +132,7 @@ def parse_comma_separated_list(s):
 @click.option('--outdir',       	help='Where to save the results', metavar='DIR',                required=True)
 @click.option('--cfg',          	help='Base configuration',                                      type=click.Choice(['stylegan3-t', 'stylegan3-r', 'stylegan2']), required=True)
 @click.option('--data',         	help='Training data', metavar='[ZIP|DIR]',                      type=str, required=True)
+@click.option('--data-hash',		help='Training data hash',										type=str, required=True)
 @click.option('--gpus',         	help='Number of GPUs to use', metavar='INT',                    type=click.IntRange(min=1), required=True)
 @click.option('--batch',        	help='Total batch size', metavar='INT',                         type=click.IntRange(min=1), required=True)
 @click.option('--gamma',        	help='R1 regularization weight', metavar='FLOAT',               type=click.FloatRange(min=0), required=True)
@@ -156,6 +158,7 @@ def parse_comma_separated_list(s):
 # Misc settings.
 @click.option('--desc',         	help='String to include in result dir name', metavar='STR',     type=str)
 @click.option('--metrics',      	help='Quality metrics', metavar='[NAME|A,B,C|none]',            type=parse_comma_separated_list, default='fid50k_full', show_default=True)
+@click.option('--metrics-freq',		help='How often are metrics calculated (kimg)',					type=click.IntRange(min=1), default=100, show_default=True)
 @click.option('--kimg',         	help='Total training duration', metavar='KIMG',                 type=click.IntRange(min=1), default=25000, show_default=True)
 @click.option('--tick',         	help='How often to print progress', metavar='KIMG',             type=click.IntRange(min=1), default=4, show_default=True)
 @click.option('--snap',         	help='How often to save snapshots', metavar='TICKS',            type=click.IntRange(min=1), default=50, show_default=True)
@@ -200,7 +203,7 @@ def main(**kwargs):
 	c.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, prefetch_factor=2)
 
 	# Training set.
-	c.training_set_kwargs, dataset_name = init_dataset_kwargs(data=opts.data)
+	c.training_set_kwargs, dataset_name = init_dataset_kwargs(data=opts.data, hash=opts.data_hash)
 	if opts.cond and not c.training_set_kwargs.use_labels:
 		raise click.ClickException('--cond=True requires labels specified in dataset.json')
 	c.training_set_kwargs.use_labels = opts.cond
@@ -219,6 +222,7 @@ def main(**kwargs):
 	c.G_opt_kwargs.lr = (0.002 if opts.cfg == 'stylegan2' else 0.0025) if opts.glr is None else opts.glr
 	c.D_opt_kwargs.lr = opts.dlr
 	c.metrics = opts.metrics
+	c.metrics_freq = opts.metrics_freq
 	c.total_kimg = opts.kimg
 	c.kimg_per_tick = opts.tick
 	c.image_snapshot_ticks = c.network_snapshot_ticks = opts.snap
