@@ -397,7 +397,7 @@ def training_loop(
 				print('@abort')
 
 		# Evaluate metrics.
-		if (snapshot_data is not None) and (len(metrics) > 0) and (int(cur_nimg / 1e3) % metrics_freq == 0):
+		if (snapshot_data is not None) and (len(metrics) > 0): # and (int(cur_nimg / 1e3) % metrics_freq == 0):
 			if rank == 0:
 				print('Evaluating metrics...')
 			for metric in metrics:
