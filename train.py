@@ -54,6 +54,8 @@ def launch_training(c, desc, outdir, dry_run):
 	dnnlib.util.Logger(should_flush=True)
 
 	# No subfolders for different training runs
+	if not os.path.isdir(outdir):
+		os.makedirs(outdir)
 	if os.path.isdir(outdir):
 		c.run_dir = os.path.abspath(outdir)
 	assert os.path.exists(c.run_dir)
@@ -269,7 +271,7 @@ def main(**kwargs):
 
 	# Augmentation.
 	if opts.aug != 'noaug':
-		c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1)
+		c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', xflip=1, rotate90=0, xint=1, scale=1, rotate=0, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1)
 		if opts.aug == 'ada':
 			c.ada_target = opts.target
 		if opts.aug == 'fixed':
