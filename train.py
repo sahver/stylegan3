@@ -142,7 +142,7 @@ def parse_comma_separated_list(s):
 # Optional features.
 @click.option('--cond',         	help='Train conditional model', metavar='BOOL',                 type=bool, default=False, show_default=True)
 @click.option('--mirror',       	help='Enable dataset x-flips', metavar='BOOL',                  type=bool, default=False, show_default=True)
-@click.option('--aug',          	help='Augmentation mode',                                       type=click.Choice(['noaug', 'ada', 'fixed']), default='ada', show_default=True)
+@click.option('--aug',          	help='Augmentation mode',                                       type=click.Choice(['noaug', 'ada', 'fixed', 'custom']), default='ada', show_default=True)
 @click.option('--resume',       	help='Resume from given network pickle or latest', metavar='[PATH|URL|latest]',  type=str)
 @click.option('--freezed',      	help='Freeze first layers of D', metavar='INT',                 type=click.IntRange(min=0), default=0, show_default=True)
 
@@ -271,7 +271,10 @@ def main(**kwargs):
 
 	# Augmentation.
 	if opts.aug != 'noaug':
-		c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', xflip=1, rotate90=0, xint=1, scale=1, rotate=0, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1)
+		if opts.aug == 'custom':
+			c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', xflip=1, rotate90=0, xint=1, scale=1, rotate=0, aniso=1, xfrac=1, brightness=0, contrast=0, lumaflip=0, hue=0, saturation=0)
+		else:
+			c.augment_kwargs = dnnlib.EasyDict(class_name='training.augment.AugmentPipe', xflip=1, rotate90=1, xint=1, scale=1, rotate=1, aniso=1, xfrac=1, brightness=1, contrast=1, lumaflip=1, hue=1, saturation=1)
 		if opts.aug == 'ada':
 			c.ada_target = opts.target
 		if opts.aug == 'fixed':
