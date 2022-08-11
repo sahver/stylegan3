@@ -35,7 +35,7 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 		self._fullscreen            = fullscreen
 		self._monitor               = glfw.get_monitors()[monitor] if monitor else glfw.get_primary_monitor()
 		self.reload					= False
-		
+
 		# Fullscreen should not lose focus
 		glfw.window_hint(glfw.AUTO_ICONIFY, False)
 
